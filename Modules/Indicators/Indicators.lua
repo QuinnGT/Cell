@@ -132,26 +132,52 @@ local function SetOnUpdate(indicator, type, icon, stack, extra)
     -- is visible as base and black fills in (matches in-game SetCooldownFromAura).
     local isMidnightBorderIcon = Cell.isMidnight and indicator.cooldown
         and indicator.cooldown._SetCooldown and not indicator.cooldown.SetMinMaxValues
+    -- Enable countdown text on Midnight BorderIcon previews
+    local function enableCountdownText(cd)
+        if not cd then return end
+        cd:SetHideCountdownNumbers(false)
+        local cdText = cd:GetCountdownFontString()
+        if cdText then
+            local df = indicator._durationFont
+            if df then
+                local fontFace = F.GetFont(df[1]) or cdText:GetFont()
+                local fontSize = df[2] or 11
+                local outline = df[3]
+                local flags = outline == "Outline" and "OUTLINE"
+                    or outline == "Monochrome" and "OUTLINE,MONOCHROME"
+                    or ""
+                cdText:SetFont(fontFace, fontSize, flags)
+                cdText:SetParent(indicator.iconFrame)
+            else
+                local fontFace = cdText:GetFont()
+                cdText:SetFont(fontFace, 11, "OUTLINE")
+                cdText:SetParent(indicator.iconFrame)
+            end
+        end
+    end
+
     local function doPreview()
         if isMidnightBorderIcon and not type then
             -- Buff cooldowns (no debuff type): yellow border base, black swipe fills in
             indicator.icon:SetTexture(icon)
             indicator.stack:SetText(stack and stack > 1 and stack or "")
-            -- Yellow border as base color
             if indicator.border then
                 indicator.border:SetColorTexture(1, 0.85, 0)
                 indicator.border:Show()
             end
-            -- Black swipe fills IN (reverse) over the yellow border
             if indicator.cooldown then
                 indicator.cooldown:SetReverse(true)
                 indicator.cooldown:SetSwipeColor(0, 0, 0)
                 indicator.cooldown:_SetCooldown(GetTime(), 13)
                 indicator.cooldown:Show()
+                enableCountdownText(indicator.cooldown)
             end
             indicator:Show()
         else
             indicator:SetCooldown(GetTime(), 13, type, icon, stack or 0, false, extra)
+            if isMidnightBorderIcon and indicator.cooldown then
+                enableCountdownText(indicator.cooldown)
+            end
         end
     end
     indicator.preview:SetScript("OnUpdate", function(self, elapsed)
