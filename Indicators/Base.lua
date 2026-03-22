@@ -90,6 +90,8 @@ end
 local function Shared_SetFont(frame, font1, font2)
     I.SetFont(frame.stack, frame, unpack(font1))
     I.SetFont(frame.duration, frame, unpack(font2))
+    -- Store duration font config for Midnight countdown text on CooldownFrame
+    frame._durationFont = font2
 end
 
 local function Shared_ShowStack(frame, show)
@@ -461,8 +463,29 @@ local function BorderIcon_SetCooldownFromAura(frame, unit, auraInstanceID, textu
     local durObj = _GetAuraDuration and _GetAuraDuration(unit, auraInstanceID)
     if durObj and frame.cooldown and frame.cooldown._SetCooldown
         and frame.cooldown.SetCooldownFromDurationObject then
+        -- Enable Blizzard's countdown text before setting cooldown so the FontString is created
+        frame.cooldown:SetHideCountdownNumbers(false)
         frame.cooldown:SetReverse(true)
         frame.cooldown:SetCooldownFromDurationObject(durObj, true)
+        -- Size the countdown text to fit Cell's small frames
+        local cdText = frame.cooldown:GetCountdownFontString()
+        if cdText then
+            -- Re-parent to iconFrame so text renders above the icon
+            cdText:SetParent(frame.iconFrame)
+            local df = frame._durationFont
+            if df then
+                local fontFace = F.GetFont(df[1]) or cdText:GetFont()
+                local fontSize = df[2] or 11
+                local outline = df[3]
+                local flags = outline == "Outline" and "OUTLINE"
+                    or outline == "Monochrome" and "OUTLINE,MONOCHROME"
+                    or ""
+                cdText:SetFont(fontFace, fontSize, flags)
+            else
+                local fontFace = cdText:GetFont()
+                cdText:SetFont(fontFace, 11, "OUTLINE")
+            end
+        end
         -- Keep border visible as base color (caller sets color); black swipe fills over it
         frame.cooldown:Show()
     else
