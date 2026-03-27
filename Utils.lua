@@ -1961,7 +1961,9 @@ if C_Spell.GetSpellCooldown then
     F.GetSpellCooldown = function(spellId)
         local info = GetSpellCooldown(spellId)
         if info then
-            return info.startTime, info.duration
+            -- 12.0.1+: isActive is NeverSecret (safe for boolean test even when
+            -- startTime/duration are secret). Nil on older builds.
+            return info.startTime, info.duration, info.isActive
         end
     end
 else
@@ -1972,18 +1974,38 @@ else
 end
 
 function F.IsSpellReady(spellId)
-    local start, duration = F.GetSpellCooldown(spellId)
-    if start == 0 or duration == 0 then
-        return true
-    else
-        local _, gcd = F.GetSpellCooldown(61304) --! check gcd
-        if duration == gcd then -- spell ready
+    local start, duration, isActive = F.GetSpellCooldown(spellId)
+    if not start then return true end
+
+    -- 12.0.1+: use NeverSecret isActive field to avoid comparing secret startTime/duration
+    if isActive ~= nil then
+        if not isActive then
             return true
-        else
+        end
+        -- Cooldown is active — check if it's just the GCD
+        if F.IsValueNonSecret(duration) then
+            local _, gcd = F.GetSpellCooldown(61304) --! check gcd
+            if gcd and duration == gcd then -- spell ready (on GCD only)
+                return true
+            end
             local cdLeft = start + duration - GetTime()
             return false, cdLeft
+        else
+            -- Secret cooldown values: can't determine remaining time
+            return false, 0
         end
     end
+
+    -- Legacy path (classic): isActive not available, values are never secret
+    if start == 0 or duration == 0 then
+        return true
+    end
+    local _, gcd = F.GetSpellCooldown(61304) --! check gcd
+    if duration == gcd then -- spell ready (on GCD only)
+        return true
+    end
+    local cdLeft = start + duration - GetTime()
+    return false, cdLeft
 end
 
 -------------------------------------------------
