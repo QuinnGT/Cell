@@ -142,11 +142,11 @@ end)
 -- Update
 --------------------------------------------------
 local GetSpellCharges = C_Spell.GetSpellCharges
+-- 12.0.1+: SpellChargeInfo fields currentCharges/cooldownStartTime/cooldownDuration
+-- may be secret. isActive (NeverSecret) and maxCharges (NeverSecret) are always safe.
+-- Returns the full info table so callers can use NeverSecret fields.
 local function GetBRInfo()
-    local info = GetSpellCharges(20484)
-    if info then
-        return info.currentCharges, info.cooldownStartTime, info.cooldownDuration
-    end
+    return GetSpellCharges(20484)
 end
 
 battleResFrame.elapsed = 0.25
@@ -157,35 +157,56 @@ battleResFrame.onUpdate = function(self, elapsed)
 
         -- Upon engaging a boss, all combat resurrection spells will have their cooldowns reset and begin with 1 charge.
         -- Charges will accumulate at a rate of 1 per (90/RaidSize) minutes.
-        local charges, started, duration = GetBRInfo()
-        if not charges then
+        local info = GetBRInfo()
+        if not info then
             -- hide out of encounter
             battleResFrame:Hide()
             battleResFrame:RegisterEvent("SPELL_UPDATE_CHARGES")
             return
         end
 
-        local color = (charges > 0) and "|cff00ff00" or "|cffff0000"
-        local remaining = duration - (GetTime() - started)
-        local m = floor(remaining / 60)
-        local s = mod(remaining, 60)
-
-        stack:SetFormattedText("%s%d|r  ", color, charges)
-        rTime:SetFormattedText("%d:%02d", m, s)
-
-        if bar.maxVlue ~= duration then
-            bar:SetMinMaxValues(0, duration)
-            bar.maxVlue = duration
+        -- 12.0.1+: isActive is NeverSecret — at max charges, show full and skip arithmetic
+        if info.isActive ~= nil and not info.isActive then
+            stack:SetFormattedText("|cff00ff00%d|r  ", info.maxCharges)
+            rTime:SetText("0:00")
+            bar:SetMinMaxValues(0, 1)
+            bar:SetValue(1)
+            bar.maxVlue = nil
+            return
         end
-        bar:SetValue(duration - remaining)
+
+        -- Guard arithmetic: currentCharges/cooldownStartTime/cooldownDuration may be secret
+        if F.IsValueNonSecret(info.currentCharges) then
+            local charges = info.currentCharges
+            local started = info.cooldownStartTime
+            local duration = info.cooldownDuration
+            local color = (charges > 0) and "|cff00ff00" or "|cffff0000"
+            local remaining = duration - (GetTime() - started)
+            local m = floor(remaining / 60)
+            local s = mod(remaining, 60)
+
+            stack:SetFormattedText("%s%d|r  ", color, charges)
+            rTime:SetFormattedText("%d:%02d", m, s)
+
+            if bar.maxVlue ~= duration then
+                bar:SetMinMaxValues(0, duration)
+                bar.maxVlue = duration
+            end
+            bar:SetValue(duration - remaining)
+        else
+            -- Secret values: degraded display (C-level SetText won't crash)
+            stack:SetText("")
+            rTime:SetText("")
+        end
     end
 end
 
 battleResFrame:SetScript("OnUpdate", battleResFrame.onUpdate)
 
 function battleResFrame:SPELL_UPDATE_CHARGES()
-    local charges = GetBRInfo()
-    if charges then
+    -- info is a table (never secret), safe for boolean test
+    local info = GetBRInfo()
+    if info then
         battleResFrame:UnregisterEvent("SPELL_UPDATE_CHARGES")
         battleResFrame:Show()
     end
