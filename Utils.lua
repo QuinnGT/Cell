@@ -819,13 +819,33 @@ end
 --     return string.gsub(GetRealmName(), " ", "")
 -- end
 
+-- 12.0.1+: Blizzard's global GetUnitName() is a LUA function that does
+-- `server ~= ""` on UnitName() results. Both name and server can be secret
+-- strings on Midnight, crashing the comparison. This wrapper calls UnitName()
+-- (C-level, secret-safe) directly and guards the server comparison.
+function F.GetUnitName(unit, showServerName)
+    local name, server = UnitName(unit)
+    if showServerName and server then
+        -- server could be secret — only compare if non-secret
+        if F.IsValueNonSecret(server) then
+            if server ~= "" then
+                return name .. "-" .. server
+            end
+        end
+        -- secret server: return name only (can't safely append)
+    end
+    return name
+end
+
 function F.UnitFullName(unit)
     if not unit or not UnitIsPlayer(unit) then return end
 
-    local name = GetUnitName(unit, true)
+    -- Use safe F.GetUnitName instead of Blizzard's GetUnitName
+    local name = F.GetUnitName(unit, true)
 
     --? name might be nil in some cases?
-    if name and not string.find(name, "-") then
+    -- 12.0.1+: name may be secret, string.find crashes on secrets
+    if name and F.IsValueNonSecret(name) and not string.find(name, "-") then
         local server = GetNormalizedRealmName()
         --? server might be nil in some cases?
         if server then

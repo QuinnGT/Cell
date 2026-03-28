@@ -1138,7 +1138,8 @@ local function CreatePlayerList(parent, box)
         for unit in F.IterateGroupMembers() do
             players[i]:Show()
 
-            local name = GetUnitName(unit, true)
+            -- 12.0.1+: use F.GetUnitName (secret-safe) instead of Blizzard's GetUnitName
+            local name = F.GetUnitName(unit, true)
             local class = UnitClassBase(unit)
 
             players[i].name = name

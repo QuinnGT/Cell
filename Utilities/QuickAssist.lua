@@ -831,15 +831,19 @@ local function UpdateAllUnits()
 
     for unit in F.IterateGroupMembers() do
         if UnitIsConnected(unit) then
-            local name = GetUnitName(unit, true)
+            -- 12.0.1+: use F.GetUnitName (secret-safe) instead of Blizzard's GetUnitName
+            local name = F.GetUnitName(unit, true)
             local guid = UnitGUID(unit)
-            local info = LGI:GetCachedInfo(guid)
-            if info then
-                nameToPriority[name] = GetPriority(info.class, info.specId)
-                -- print(name, nameToPriority[name], info.class, info.specId)
-            end
-            if nameToPriority[name] then
-                tinsert(nameList, name)
+            -- 12.0.1+: name may be secret — can't use as table key
+            if name and F.IsValueNonSecret(name) then
+                local info = LGI:GetCachedInfo(guid)
+                if info then
+                    nameToPriority[name] = GetPriority(info.class, info.specId)
+                    -- print(name, nameToPriority[name], info.class, info.specId)
+                end
+                if nameToPriority[name] then
+                    tinsert(nameList, name)
+                end
             end
         end
     end

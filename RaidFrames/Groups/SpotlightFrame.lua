@@ -419,18 +419,22 @@ unitname:SetAttribute("_onclick", [[
 function unitname:SetUnit(index, target)
     local unitId = F.GetTargetUnitID(target)
     if unitId and (UnitIsPlayer(unitId) or UnitInPartyIsAI(unitId)) then
-        local name = GetUnitName(unitId, true)
+        -- 12.0.1+: use F.GetUnitName (secret-safe) instead of Blizzard's GetUnitName
+        local name = F.GetUnitName(unitId, true)
         Cell.unitButtons.spotlight[index]:SetAttribute("unit", unitId)
         assignmentButtons[index]:SetText(name)
-        menu:Save(index, ":"..name)
+        -- 12.0.1+: name may be secret — can't use as table key or in string concat
+        if name and F.IsValueNonSecret(name) then
+            menu:Save(index, ":"..name)
 
-        local previous = names[name]
-        names[name] = index
+            local previous = names[name]
+            names[name] = index
 
-        if previous and previous ~= index then -- exists, remove previous
-            Cell.unitButtons.spotlight[previous]:SetAttribute("unit", nil)
-            assignmentButtons[previous]:SetText("|cffababab"..NONE)
-            menu:Save(previous, nil)
+            if previous and previous ~= index then -- exists, remove previous
+                Cell.unitButtons.spotlight[previous]:SetAttribute("unit", nil)
+                assignmentButtons[previous]:SetText("|cffababab"..NONE)
+                menu:Save(previous, nil)
+            end
         end
     else
         F.Print(L["Invalid unit."])
@@ -646,8 +650,10 @@ UpdateNames = function()
             nameUpdateRequired = true
             return
         end
-        local name = GetUnitName(unit, true)
-        if names[name] then
+        -- 12.0.1+: use F.GetUnitName (secret-safe) instead of Blizzard's GetUnitName
+        local name = F.GetUnitName(unit, true)
+        -- 12.0.1+: name may be secret — can't use as table key
+        if name and F.IsValueNonSecret(name) and names[name] then
             Cell.unitButtons.spotlight[names[name]]:SetAttribute("unit", unit)
             found[name] = true
         end

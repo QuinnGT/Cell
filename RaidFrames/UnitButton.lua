@@ -4344,16 +4344,24 @@ local function UnitButton_OnTick(self)
                 -- NOTE: only save players' names
                 if UnitIsPlayer(self.states.unit) then
                     -- update Cell.vars.names
-                    local name = GetUnitName(self.states.unit, true)
-                    if (name and self.__nameRetries and self.__nameRetries >= 4) or (name and name ~= UNKNOWN and name ~= UNKNOWNOBJECT) then
+                    -- 12.0.1+: use F.GetUnitName (secret-safe) instead of Blizzard's GetUnitName
+                    local name = F.GetUnitName(self.states.unit, true)
+                    -- 12.0.1+: name may be secret — can't compare with UNKNOWN or use as table key
+                    if name and F.IsValueNonSecret(name) then
+                        if (self.__nameRetries and self.__nameRetries >= 4) or (name ~= UNKNOWN and name ~= UNKNOWNOBJECT) then
+                            self.__unitName = name
+                            if not self.isSpotlight then Cell.vars.names[name] = self.states.unit end
+                            self.__nameRetries = nil
+                        else
+                            -- NOTE: update on next tick
+                            -- 国服可以起名为"未知目标"，干！就只多重试4次好了
+                            self.__nameRetries = (self.__nameRetries or 0) + 1
+                            self.__unitGuid = nil
+                        end
+                    elseif name then
+                        -- Secret name: store on button but don't add to lookup table
                         self.__unitName = name
-                        if not self.isSpotlight then Cell.vars.names[name] = self.states.unit end
                         self.__nameRetries = nil
-                    else
-                        -- NOTE: update on next tick
-                        -- 国服可以起名为"未知目标"，干！就只多重试4次好了
-                        self.__nameRetries = (self.__nameRetries or 0) + 1
-                        self.__unitGuid = nil
                     end
                 end
             end
