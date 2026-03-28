@@ -1196,8 +1196,13 @@ function I.CreateNameText(parent)
         --     end
         -- end
 
+        -- 12.0.1+: name may be a secret string (e.g. NPC/pet names in instances).
+        -- Can't do Lua string ops (compare, concat, table-key) on secrets.
+        -- Detect early and take a simplified display path.
+        local nameIsSecret = not F.IsValueNonSecret(parent.states.name)
+
         -- only check nickname for players
-        if parent.states.isPlayer then
+        if parent.states.isPlayer and not nameIsSecret then
             if CELL_NICKTAG_ENABLED and Cell.NickTag then
                 name = Cell.NickTag:GetNickname(parent.states.name, nil, true)
             end
@@ -1206,7 +1211,8 @@ function I.CreateNameText(parent)
             name = parent.states.name
         end
 
-        if Cell.loaded and CellDB["general"]["translit"] then
+        -- 12.0.1+: Transliterate crashes on secret strings
+        if not nameIsSecret and Cell.loaded and CellDB["general"]["translit"] then
             name = LibTranslit:Transliterate(name)
         end
 
@@ -1222,7 +1228,9 @@ function I.CreateNameText(parent)
             end
         end
 
-        if nameText.name:GetText() then
+        -- 12.0.1+: GetText() returns tainted string if SetText was given one;
+        -- boolean test and string concat on tainted strings crash.
+        if not nameIsSecret and nameText.name:GetText() then
             if nameText.isPreview then
                 if nameText.showGroupNumber then
                     nameText.name:SetText("|cffbbbbbb7-|r"..nameText.name:GetText())
@@ -1239,7 +1247,13 @@ function I.CreateNameText(parent)
             end
         end
 
-        nameText:SetSize(nameText.name:GetWidth(), nameText.name:GetHeight())
+        -- 12.0.1+: GetWidth/GetHeight return secret when text is tainted by secret name;
+        -- SetSize rejects secret values. Skip resize when secret — frame retains prior size.
+        local w = nameText.name:GetWidth()
+        local h = nameText.name:GetHeight()
+        if F.IsValueNonSecret(w) and F.IsValueNonSecret(h) then
+            nameText:SetSize(w, h)
+        end
     end
 
     function nameText:UpdateVehicleName()
