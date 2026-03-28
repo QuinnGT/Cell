@@ -89,6 +89,17 @@ select(2, ...).L = setmetatable({
         <h2>If there are any issues after an update, check through all code snippets first.</h2>
         <br/>
 
+        <h1>r275.6-beta — WoW 12.0.1 Secret Value Fixes</h1>
+        <h2>Secret Values (12.0.1+)</h2>
+        <p>+ Added F.GetUnitName() secret-safe wrapper: Blizzard's GetUnitName() crashes when the server name is a secret string. All callers updated (UnitButton, SpotlightFrame, QuickAssist).</p>
+        <p>* Fixed F.UnitFullName() to use F.GetUnitName() and guard string.find() against secret names.</p>
+        <p>* Fixed nameText UpdateName(): skip nickname lookup, Transliterate, and group number prefix concat when name is secret.</p>
+        <p>* Fixed nameText SetSize(): GetWidth/GetHeight return secret when FontString text is tainted — skip resize instead of crashing.</p>
+        <p>* Fixed F.GetSpellCooldown(): return new NeverSecret isActive field from SpellCooldownInfo (12.0.1+).</p>
+        <p>* Fixed F.IsSpellReady(): use isActive (NeverSecret) instead of comparing secret startTime/duration values.</p>
+        <p>* Fixed BattleRes timer: guard SpellChargeInfo arithmetic — currentCharges/cooldownStartTime/cooldownDuration may be secret; use NeverSecret isActive and maxCharges fields.</p>
+        <br/>
+
         <h1>r275.5 Added Midnight Raid Debuffs</h1>
         <h2>Raid Debuffs</h2>
         <p>+ Added initial Midnight expansion raid debuffs for all 12 instances (6 raids, 6 dungeons) and 41 bosses.</p>

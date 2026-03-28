@@ -1,3 +1,14 @@
+# r275.6-beta — WoW 12.0.1 Secret Value Fixes
+
+## Secret Values (12.0.1+)
+- Add `F.GetUnitName()` secret-safe wrapper replacing Blizzard's Lua `GetUnitName()` which crashes on `server ~= ""` when server is a secret string. All callers in `UnitButton.lua`, `SpotlightFrame.lua`, `QuickAssist.lua`, `QuickAssist_Config.lua` updated.
+- Fix `F.UnitFullName()` to use `F.GetUnitName()` and guard `string.find()` against secret names.
+- Fix `nameText:UpdateName()`: detect secret names early, skip nickname lookup, Transliterate, and group number prefix concatenation (all crash on secret strings).
+- Fix `nameText:SetSize()`: guard `GetWidth()/GetHeight()` return values — both return secret when the FontString text is tainted.
+- Fix `F.GetSpellCooldown()`: return new `NeverSecret` `isActive` field from `SpellCooldownInfo`.
+- Fix `F.IsSpellReady()`: use `isActive` (NeverSecret) instead of `start == 0` comparison and arithmetic on potentially secret `startTime`/`duration`.
+- Fix `BattleRes` timer: `SpellChargeInfo.currentCharges/cooldownStartTime/cooldownDuration` may be secret; use `NeverSecret` `isActive` and `maxCharges` fields; guard arithmetic with `F.IsValueNonSecret()`.
+
 # r275.5 Added Midnight Raid Debuffs
 
 ## Raid Debuffs
